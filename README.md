@@ -3,11 +3,11 @@ Based on Millie Smith's answer @ https://superuser.com/questions/126121/how-to-c
 ## Command Summary
 
 ```bash
-openssl genrsa -out root.key 2048
+openssl genrsa -des3 -out root.key 2048
 openssl req -new -key root.key -out root.csr -config root_req.config
 openssl ca -in root.csr -out root.pem -config root.config -selfsign -extfile ca.ext -days 1095
 
-openssl genrsa -out intermediate.key 2048
+openssl genrsa -des3 -out intermediate.key 2048
 openssl req -new -key intermediate.key -out intermediate.csr -config intermediate_req.config
 openssl ca -in intermediate.csr -out intermediate.pem -config root.config -extfile ca.ext -days 730
 
@@ -53,6 +53,7 @@ If this is a more permanent CA, the following changes are probably a good idea:
 ```bash
 # create the private key for the root CA
 openssl genrsa 
+    -des3         # password protect the key
     -out root.key # output file
     2048          # bitcount
 
@@ -74,6 +75,7 @@ openssl ca
 
 # create the private key for the intermediate CA
 openssl genrsa 
+    -des3                 # password protect the key
     -out intermediate.key # output file
     2048                  # bitcount
 
