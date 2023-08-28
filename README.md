@@ -12,8 +12,12 @@ openssl req -new -key intermediate.key -out intermediate.csr -config intermediat
 openssl ca -in intermediate.csr -out intermediate.pem -config root.config -extfile ca.ext -days 730
 
 openssl genrsa -out leaf.key 2048
-openssl req -new -key leaf.key -out leaf.csr -config leaf_req.config
+# openssl req -new -key leaf.key -out leaf.csr -config leaf_req.config
+# Don't use config for leaf. Probable a good idea to choose another filename too
+openssl req -new -key leaf.key -out leaf.csr
 openssl ca -in leaf.csr -out leaf.pem -config intermediate.config -days 365
+
+cat leaf.pem intermediate.pem root.pem > fullchain_leaf.pem
 
 openssl verify -x509_strict -CAfile root.pem -untrusted intermediate.pem leaf.pem
 ```
@@ -104,7 +108,7 @@ openssl req
     -new 
     -key leaf.key           # private key associated with the csr
     -out leaf.csr           # output file
-    -config leaf_req.config # contains config for generating the csr such as the distinguished name
+#    -config leaf_req.config # [disabled] contains config for generating the csr such as the distinguished name
 
 # create the leaf certificate (note: no ca.ext. this certificate is not a CA)
 openssl ca 
@@ -119,5 +123,23 @@ openssl verify
     -CAfile root.pem            # root certificate
     -untrusted intermediate.pem # file with all intermediates
     leaf.pem                    # leaf certificate to verify
+
+# Concatenate the different certificates into a single full chain file
+# ORDER IS HERE IMPORTANT !! Leaf DC must be on top !
+cat leaf.pem intermediate.pem root.pem > fullchain_leaf.pem
 ```
 
+## Steve's internet guide
+
+Basic key generation with only root CA and no config.
+
+http://www.steves-internet-guide.com/mosquitto-tls/
+
+```bash
+openssl genrsa -out ca.key 2048
+openssl req -new -x509 -days 1826 -key ca.key -out ca.crt
+openssl genrsa -out server.key 2048
+openssl req -new -out server.csr -key server.key
+openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt -days 360
+cat ca.crt server.crt > fullchain.crt
+```
