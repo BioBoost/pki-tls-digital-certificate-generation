@@ -1,4 +1,5 @@
 Based on Millie Smith's answer @ https://superuser.com/questions/126121/how-to-create-my-own-certificate-chain
+Also some extra thanks too Andrew Connell for his gist: https://gist.github.com/andrewconnell/340ba2eecbc35540b83026340abaf03d
 
 ## Command Summary
 
@@ -11,11 +12,10 @@ openssl genrsa -des3 -out intermediate.key 2048
 openssl req -new -key intermediate.key -out intermediate.csr -config intermediate_req.config
 openssl ca -in intermediate.csr -out intermediate.pem -config root.config -extfile ca.ext -days 730
 
+# Probable a good idea to use another filename. Don't forget to change the config!
 openssl genrsa -out leaf.key 2048
-# openssl req -new -key leaf.key -out leaf.csr -config leaf_req.config
-# Don't use config for leaf. Probable a good idea to choose another filename too
-openssl req -new -key leaf.key -out leaf.csr
-openssl ca -in leaf.csr -out leaf.pem -config intermediate.config -days 365
+openssl req -new -key leaf.key -out leaf.csr -config leaf_req.config
+openssl ca -in leaf.csr -out leaf.pem -config intermediate.config -extfile leaf.ext -days 365
 
 cat leaf.pem intermediate.pem root.pem > fullchain_leaf.pem
 
@@ -108,13 +108,14 @@ openssl req
     -new 
     -key leaf.key           # private key associated with the csr
     -out leaf.csr           # output file
-#    -config leaf_req.config # [disabled] contains config for generating the csr such as the distinguished name
+    -config leaf_req.config # contains config for generating the csr such as the distinguished name
 
 # create the leaf certificate (note: no ca.ext. this certificate is not a CA)
 openssl ca 
     -in leaf.csr                # csr file
     -out leaf.pem               # output certificate file
     -config intermediate.config # CA configuration file (note: intermediate is issuing)
+    -extfile leaf.ext           # extensions for leaf, for example alt-names
     -days 365                   # 1 year
 
 # verify the certificate chain
