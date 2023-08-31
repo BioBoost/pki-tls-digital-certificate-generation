@@ -2,3 +2,6 @@
 *.key
 *.csr
 *.pem
+intermediate_ca/db
+root_ca/db
+leafs/**/*.ext
