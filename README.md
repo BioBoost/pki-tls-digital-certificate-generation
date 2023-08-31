@@ -1,56 +1,39 @@
 Based on Millie Smith's answer @ https://superuser.com/questions/126121/how-to-create-my-own-certificate-chain
 Also some extra thanks too Andrew Connell for his gist: https://gist.github.com/andrewconnell/340ba2eecbc35540b83026340abaf03d
 
-## Command Summary
+## Root and Intermediate CA commands
 
 ```bash
-openssl genrsa -des3 -out root.key 2048
-openssl req -new -key root.key -out root.csr -config root_req.config
-openssl ca -in root.csr -out root.pem -config root.config -selfsign -extfile ca.ext -days 1095
+openssl genrsa -des3 -out root_ca/key/root.key 2048
+openssl req -new -key root_ca/key/root.key -out root_ca/requests/root.csr -config root_ca/configs/root_req.config
+openssl ca -in root_ca/requests/root.csr -out root_ca/certificates/root.pem -config root_ca/configs/root.config -selfsign -extfile ca.ext -days 1095
 
-openssl genrsa -des3 -out intermediate.key 2048
-openssl req -new -key intermediate.key -out intermediate.csr -config intermediate_req.config
-openssl ca -in intermediate.csr -out intermediate.pem -config root.config -extfile ca.ext -days 730
-
-# Probable a good idea to use another filename. Don't forget to change the config!
-openssl genrsa -out leaf.key 2048
-openssl req -new -key leaf.key -out leaf.csr -config leaf_req.config
-openssl ca -in leaf.csr -out leaf.pem -config intermediate.config -extfile leaf.ext -days 365
-
-cat leaf.pem intermediate.pem root.pem > fullchain_leaf.pem
-
-openssl verify -x509_strict -CAfile root.pem -untrusted intermediate.pem leaf.pem
+openssl genrsa -des3 -out intermediate_ca/key/intermediate.key 2048
+openssl req -new -key intermediate_ca/key/intermediate.key -out root_ca/requests/intermediate.csr -config intermediate_ca/configs/intermediate_req.config
+openssl ca -in root_ca/requests/intermediate.csr -out root_ca/certificates/intermediate.pem -config root_ca/configs/root.config -extfile ca.ext -days 730
 ```
 
 These commands rely on some setup which I will describe below. They are a bit of an overkill if you just want a few certs in a chain, which can be done with just the x509 command. These commands will also track your certs in a text database and auto-increment a serial number. I would recommend reading the warnings and bugs section of the openssl ca man page before or after reading this answer.
 
-## Directory structure
+## Leaf Certificate
 
-We will need the following directory structure before starting.
+Best to use the bash script:
 
-```
-ca.ext              # the extensions required for a CA certificate for signing certs
-intermediate.config # configuration for the intermediate CA
-root.config         # configuration for the root CA
-
-leaf_req.config         # configuration for the leaf cert's csr
-intermediate_req.config # configuration for the intermediate CA's csr
-root_req.config         # configuration for the root CA's csr
-
-intermediate_ca/    # state files specific to the intermediate CA
-    index           # a text database of issued certificates
-    serial          # an auto-incrementing serial number for issued certificates
-root_ca/            # state files specific to the root CA
-    index           # a text database of issued certificates
-    serial          # an auto-incrementing serial number for issued certificates
+```bash
+./new_leaf
 ```
 
-If this is a more permanent CA, the following changes are probably a good idea:
+Or use these if you like the manual work (make sure to change the filenames then)
 
-- Moving each CA's configuration file, private key (generated later), and certificate file (generated later) to the CA's directory. This will require changes to the configuration file.
-- Creating a subdirectory in the CA's directory for issued certificates. This requires changes to the configuration file
-- Encrypting the private key
-- Setting a default number of days for issued certificates in the CA configuration files
+```bash
+openssl genrsa -out leafs/leaf.key 2048
+openssl req -new -key leafs/leaf.key -out intermediate_ca/requests/leaf.csr -config leaf_req.config
+openssl ca -in intermediate_ca/requests/leaf.csr -out leafs/leaf.pem -config /intermediate_ca/configs/intermediate.config -extfile leaf_base.ext -days 365
+
+cat leafs/leaf.pem root_ca/certificates/intermediate.pem root_ca/certificates/root.pem > leafs/fullchain_leaf.pem
+
+openssl verify -x509_strict -CAfile root_ca/certificates/root.pem -untrusted root_ca/certificates/intermediate.pem leafs/leaf.pem
+```
 
 ## Detailed commands
 

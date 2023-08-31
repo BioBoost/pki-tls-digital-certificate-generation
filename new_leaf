@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+
+echo "Please supply unique name for the leaf:"
+read LEAFNAME
+
+LEAFDIR="./leafs/${LEAFNAME}"
+
+if [ -d "./${LEAFDIR}" ]; then
+  echo "Leaf name already taken"
+  exit -1
+fi
+
+echo "Creating directory ${LEAFDIR} for leaf files"
+mkdir -p "${LEAFDIR}"
+
+# Generate key for the leaf
+openssl genrsa -out "${LEAFDIR}/${LEAFNAME}.key" 2048
+
+# Generate certificate request for intermediate CA
+openssl req -new -key "${LEAFDIR}/${LEAFNAME}.key" -out "intermediate_ca/requests/${LEAFNAME}.csr" -config leaf_req.config
+
+# Request the altnames from the user
+echo "Please enter the altnames in the format of IP.2=xxx.xxx.xxx.xxx or DNS.2=example.domain.com"
+echo "Make sure to start with number 2 and increment each line"
+echo "Place one per line and leaf empty to stop"
+
+altnames=()
+
+while read ALTNAME ; do
+  if [ -z "${ALTNAME}" ]; then
+    break
+  fi
+
+  altnames+=("${ALTNAME}")
+done
+
+echo "Adding these altnames to certificate:"
+for a in ${altnames[@]}; do
+  echo "${a}"
+done
+
+# Now we take the leaf_base.ext file and append the altnames
+cp ./leaf_base.ext "${LEAFDIR}/${LEAFNAME}.ext"
+
+echo "\n\n" >> "${LEAFDIR}/${LEAFNAME}.ext"
+for a in ${altnames[@]}; do
+  echo "${a}" >> "${LEAFDIR}/${LEAFNAME}.ext"
+done
+
+# Let intermediate CA generate the certificate based on the request
+openssl ca -in "intermediate_ca/requests/${LEAFNAME}.csr" -out "${LEAFDIR}/${LEAFNAME}.pem" -config intermediate_ca/configs/intermediate.config -extfile "${LEAFDIR}/${LEAFNAME}.ext" -days 365
+
+# Create a fullchain certificate
+cat "${LEAFDIR}/${LEAFNAME}.pem" root_ca/certificates/intermediate.pem root_ca/certificates/root.pem > "${LEAFDIR}/fullchain_${LEAFNAME}.pem"
+
+# Verify the generated certificate
+openssl verify -x509_strict -CAfile root_ca/certificates/root.pem -untrusted root_ca/certificates/intermediate.pem "${LEAFDIR}/${LEAFNAME}.pem"
