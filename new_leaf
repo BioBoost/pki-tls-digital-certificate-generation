@@ -42,7 +42,6 @@ done
 # Now we take the leaf_base.ext file and append the altnames
 cp ./leaf_base.ext "${LEAFDIR}/${LEAFNAME}.ext"
 
-echo "\n\n" >> "${LEAFDIR}/${LEAFNAME}.ext"
 for a in ${altnames[@]}; do
   echo "${a}" >> "${LEAFDIR}/${LEAFNAME}.ext"
 done
